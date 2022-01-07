@@ -1,0 +1,211 @@
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+<style>
+        #contMeso{
+            width: 100%;
+            height: 100%;        
+            min-height: 600px;
+        }
+        #menuIcon{
+            position: absolute;
+            width: 60px;
+            height: 60px;        
+        }
+        #iconTof{
+            position: relative;
+            left: 60px;
+            width: 55px;
+            height: 60px;
+            cursor: pointer;            
+        }
+        #menuContent{
+            display:none;
+            width: 460px;
+            height: 100%;        
+            background-color:white;
+            padding:3px;
+            font-family: 'MedievalSharp', cursive;
+        }
+        h3 {
+            font-style: italic;
+        }
+        input{
+            width:98%;
+            margin-bottom: 10px;
+        }
+
+    </style>
+
+<?php $items = $this->mesostiche($block->dataValue('regle')); ?>
+<div id="contMeso">
+    <div class="menu" id="menuContent">
+        <img id='iconTof' src="<?php echo $this->assetUrl('img/camera-retro-solid.svg','Mesostiche'); ?>" alt="Photographier l'écran">
+        <h4>Paramètres : </h4>
+        <label for="inptRegle">Règle : </label>
+        <input type="text" id="inptRegle" name="inptRegle" minlength="4" maxlength="100" value="<?php echo $block->dataValue('regle');?>" >
+        <label for="cRegle">Couleur de la règle : Aléa<input style="width: 20px;" type="checkbox" id="cRegleAlea" name="cRegleAlea"></label>
+        <input type="color" id="cRegle" name="cRegle" value="black">
+        <label for="cTexte">Couleur des textes : Aléa<input style="width: 20px;" type="checkbox" id="cTexteAlea" name="cTexteAlea"></label>
+        <input type="color" id="cTexte" name="cTexte" value="black">        
+        <label for="cInterpolate">Echelle des couleurs aléatoires : </label>
+        <div id="mnuColors"></div>
+        <label style="margin-top: 10px;" for="nbPapi">Nombre de papillon :<span> </span> 
+            <input style="width: 40px;" type="number" id="nbPapi" name="nbPapi" min="0" max="100" value="6">
+            <span> cumul</span>
+            <input style="width: 20px;" type="checkbox" id="papiCumul" name="papiCumul" checked>
+            <span style="margin-right: 100%;"> </span>
+        </label>        
+        <label for="animTexte" >Animation des textes :
+            <input style="width: 20px;" type="checkbox" id="animTexte" name="animTexte" checked/>
+        </label>
+        <br/>
+        <label>Source des textes :</label>
+        <div class="dropdown" style="width: 100%;">
+            <button class="btn btn-secondary dropdown-toggle" type="button" id="ddmSourcesTextes" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Cantiquest - Chants Joyeux
+            </button>
+            <div id="ddmListeSourcesTextes" class="dropdown-menu" aria-labelledby="ddmSourcesTextes">
+            </div>
+        </div>
+
+
+        <input style="margin-top: 10px;" type="button" id="validParams" name="validParams" value="Valider">        
+        
+        <h4>Merci à : </h4>
+        <h5>- pour les textes : <a href="http://www.balpe.name/">J-P Balpe</a> / <a href="https://cantiques.yapper.fr/CJ/index.html">Cantiquest</a></h5>
+        <h5>
+            - pour les devs : <a href="https://d3js.org/">D3</a> / <a href="https://animejs.com/">anime</a> / <a href="https://opentype.js.org/">opentype</a>
+        </h5>
+    </div>    
+    <div class="menu" id="menuIcon"></div>
+    <svg id="mesos">
+        <g id='mesostiche'></g>
+        <g id='nueePapillon'></g>
+    </svg>    
+</div>
+<script>
+    let nodeCont, cRegle, cTexte, cRegleAlea, cTexteAlea, cInterpolate, animTexte
+    , bMenuShow=false    
+    , menu = new exagramme({
+            'idCont':'menuIcon'
+            ,'anime':true
+            //,'color':'alea'//'white'//'#c90e25'
+            ,'interpolateColor':d3.interpolatePuRd
+            ,'boutons':true
+            ,'fctClickExa':showMenu
+            //,'fctClickTrait':showTrait
+        })
+    ,ec = new echelleColor({'idCont':'mnuColors','height':'300px'});
+    aleaItems = <?php echo json_encode($items); ?>
+    
+    //initialisation de la page
+    $(function() {
+        nodeCont = d3.select("#contMeso").node(); 
+        //place l'icone du menu
+        d3.select('#menuIcon').style('top',nodeCont.offsetTop+'px').style('left',nodeCont.offsetLeft+'px');
+
+        //dimensionne le svg principal
+        d3.select('#mesos')
+            .attr('width',nodeCont.offsetWidth)
+            .attr('height',nodeCont.offsetHeight);
+
+        //gestion des paramètres
+        d3.select('#validParams').on('click',function(){
+            getParamsMeso();        
+            if(regle){
+                creaMeso();
+            }
+        });
+        //gestion de la photo
+        d3.select('#iconTof').on('click',function(){
+            getPhoto();
+        });
+        //ajoute les sources
+        d3.select('#ddmListeSourcesTextes').selectAll('button').data(arrSourceTexte).enter().append('button')
+            .attr('class',"dropdown-item")        
+            .attr('type',"button")
+            .text(d=>d.label)
+            .on('click',(e,d)=>{
+                if(meso)meso.clean();
+                curSource = d;
+                d3.select('#ddmSourcesTextes').text(d.label);
+                d.fct(d);
+            });
+        //ajoute les échelles de couleur
+        ec.getMenuList();
+            
+        //charge les textes
+        curSource = arrSourceTexte[5];
+        curSource.fct(curSource);
+        getParamsMeso();
+        d3.select('#ddmSourcesTextes').text(curSource.label);
+        //showMenu();
+    });
+
+
+    function getParamsMeso(){
+        //récupère les paramètres
+        regle = d3.select('#inptRegle').node().value;
+        nbPapi = parseInt(d3.select('#nbPapi').node().value);
+        cumulPapi = d3.select('#papiCumul').node().checked;
+        cRegle = d3.select('#cRegle').node().value;
+        cTexte = d3.select('#cTexte').node().value;
+        cRegleAlea = d3.select('#cRegleAlea').node().checked;
+        cTexteAlea = d3.select('#cTexteAlea').node().checked;
+        cInterpolate = ec.getSelectFct();
+        animTexte = d3.select('#animTexte').node().checked;
+    }
+    
+    function showMenu(){
+        let t = 2000;
+        if(bMenuShow){
+            $("#menuContent").fadeOut(t);
+            bMenuShow=false;
+        }else{
+            $("#menuContent").fadeIn(t);
+            bMenuShow=true;
+        }
+
+    }
+
+    function showTrait(e,d){
+        console.log('showTrait');
+        console.log(d);
+    }
+
+
+    function creaMeso(){
+        if(meso)meso.clean();
+        getParamsMeso();
+
+        let aleaTexte = getAleaTextes();
+
+        //création du graphique
+        meso = new mesostiche({
+            'idCont':idCont
+            ,'width':nodeCont.offsetWidth
+            ,'height':nodeCont.offsetHeight
+            ,'anime':animTexte
+            ,'regleColor': cRegleAlea ? 'alea' : cRegle
+            ,'txtColor': cTexteAlea ? 'alea' : cTexte
+            ,'regle':regle
+            ,'interpolateColor':cInterpolate
+            ,'textes':aleaTexte
+            ,'duree':6
+            ,'delais':60
+            ,'boutons':true
+            ,'fctEndAlterneTexte': curSource.gen ? txtFromGen : false
+            ,'fctEnd':ajoutNueePapillon
+        });
+
+    }
+    function getPhoto(){
+        svgenie.save(document.getElementById('mesos'),{ name:"chaoticum-mesotiche.png" }); 
+    }
+
+
+</script>
